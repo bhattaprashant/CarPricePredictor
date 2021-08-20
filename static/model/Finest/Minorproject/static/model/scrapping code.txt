@@ -1,0 +1,206 @@
+from bs4 import BeautifulSoup as soup
+from urllib.request import urlopen as uReq
+import csv
+import os
+import time
+
+# the method is used to crawl over the url which is passed as the parameter
+# it requires 2 parameters url of an advertisement and the total number of pagination of that particular add
+
+def webScrape(brand,url,totalpage):
+
+    with open('C:/Users/rabin/Desktop/work/mini.csv','a',encoding='utf-8',newline='') as f_output:
+        csv_print=csv.writer(f_output)
+        file_is_empty = os.stat('C:/Users/rabin/Desktop/work/mini.csv').st_size ==0
+        if(file_is_empty):
+            csv_print.writerow(
+                ['Brand','Model','Model_year', 'Transmission', 'Engine_size(cc)', 'Drivetrain', 'Fuel_type', 'Colour',
+                 'Lot_no', 'Kilometer', 'Status', 'Price'])
+        print('--------------------------------------------------------------------------------------------')
+        print('For' + ' ' + brand + ' ' + 'brand ')
+
+        # CONSTANTS which contains the array of model's name of the car brands...
+        KIA_BASE_MODELS = ['picanto', 'sportage','rio','carens','soul','cerato','soren','sephia']
+        FORD_BASE_MODELS=['figo','titanium','ecosport','fiesta','ranger']
+        CHEVROLET_BASE_MODELS = ['sedan','aveo','beat','captiva','uva','u-va','spark']
+        FIAT_BASE_MODELS=['avventura','linea','palio','punto']
+        HONDA_BASE_MODELS=['accord','amaze','brio','city','civic','cr-v','crv','jazz']
+        HYUNDAI_BASE_MODELS=['accent','creta','elantra','elite','eon','getz','grand ','asta','grand i10','i10','i20','santro','sonata','tucson']
+        LANDROVER_BASE_MODELS=['defender','discovery','freelander']
+        MAHINDRA_BASE_MODELS=['bolero','camper','maxi','plus','scorpio','pickup']
+        MARUTI_SUZUKI_BASE_MODELS=['a-star','a star','astar','alto','800','10','celerio','ciaz','eeco','swift','dzire','wagonr','wagon']
+        NISSAN_BASE_MODELS=['saloon','sunny','tiida']
+        SKODA_BASE_MODELS=['fabia','laura','octavia','rapid','superb']
+        TATA_BASE_MODELS=['bolt','grande','indica','indigo','manza','nano','safari','strome','sumo','gold','grande','venture','ace']
+        TOYOTA_BASE_MODELS=['avanza','camry','corolla','corona','echo','etios','fortuner','hiace','hilux','cruiser','prado']
+        VOLKSWAGEN_BASE_MODELS=['beetle','polo','tiguan','vento','passat','touareg']
+
+        # the loop starts from 1st index and ends at n+1 index
+        # n+1 is done so that the last index is also included
+
+        for page in range(1,totalpage+1):
+            domain_url = url+str(page)
+            print('Page'+ ' '+str(page)+' '+'done.')
+
+            # //Ureq will establish a connection; it will fetch the page and load it to the variable...
+            uClient = uReq(domain_url)
+            page_html = uClient.read()
+            # close the connection
+            uClient.close()
+
+            # parse it to a html file with bsoup
+            page_soup = soup(page_html, "html.parser")
+
+
+            # The whole section which contains all the information of a particular add
+            # is stored in the conatiners variable and the findAll method is used to find the specific div[ class or id]
+            indexs=['odd','even']
+            for item in indexs:
+
+                containers = page_soup.findAll("tr", {"class": item})
+                container = containers[0]
+
+                features = container.findAll("div", {"class": "zoznam_desc"})
+
+                price = container.findAll("div", {"class": "zoznam_cena"})
+                status = container.findAll("span", {"class": "zoznam_datum"})
+
+                # loop through all the adds from the page...
+                for container in containers:
+                    # Using switch statement which will return the array of model,depending upon the brand entered for the car...
+                    def getModelArray(brand):
+                        switcher={
+                            "kia":KIA_BASE_MODELS,
+                            "ford":FORD_BASE_MODELS,
+                            "chevrolet": CHEVROLET_BASE_MODELS,
+                            "fiat":FIAT_BASE_MODELS,
+                            "honda":HONDA_BASE_MODELS,
+                            "hyundai":HYUNDAI_BASE_MODELS,
+                            "land rover":LANDROVER_BASE_MODELS,
+                            "mahindra":MAHINDRA_BASE_MODELS,
+                            "maruti suzuki":MARUTI_SUZUKI_BASE_MODELS,
+                            "nissan":NISSAN_BASE_MODELS,
+                            "skoda":SKODA_BASE_MODELS,
+                            "tata":TATA_BASE_MODELS,
+                            "toyota":TOYOTA_BASE_MODELS,
+                            "volkswagen":VOLKSWAGEN_BASE_MODELS
+                        }
+                        # if the brand doesnot matches then return None...
+                        return switcher.get(brand,"NaN")
+
+                    # filter the car brand and the model of the car...
+                    def getFilteredModel(base_models):
+                        div_title = container.div.img['alt']
+                        title = str(div_title).lower().split(" ")
+                        for x in range(0, len(base_models)):
+                            if base_models[x] in title:
+                                return base_models[x]
+
+
+
+                    price_container = container.findAll("div", {"class": "zoznam_cena"})
+                    price = str(price_container[0].text).replace(",", "")
+
+                    status_container = container.findAll("span", {"class": "zoznam_datum"})
+                    status = status_container[0].text
+
+                    features_container = container.findAll("div", {"class": "zoznam_desc"})
+                    features = features_container[0].text.strip()
+
+
+                    # this method is used to extract a specific feature from the features object
+                    ## the features object stores all the features in one bundle..
+
+                    def getFeatures(index):
+                        for items in features_container:
+                            items = str(items.text)
+                            final_points = items.split("\n")
+                        return final_points[index]
+
+                     # the method is used to parse the text/data into only numeric values...
+                     # the data is stored in 'Text : value' format...
+                     # so the method helps to split it into 2 and extract only the numeric data values...
+
+                    def parseData(data):
+                        if(data.find(":") ==-1):
+                            return "NaN"
+                        else:
+                            final_result = data.split(":")
+                            return final_result[1]
+
+
+                    # extracting a specific feature form the collection of features...
+                    # the features are position/index with respect to the parameter it is passed...
+                    # Features selection starts..
+                    try:
+                        model_year = getFeatures(2)
+                    except Exception as e:
+                        model_year= "NaN"
+
+                    try:
+                        transmission = getFeatures(3)
+                    except Exception as e:
+                        transmission = "NaN"
+                    try:
+                        engine_size = getFeatures(4)
+                    except Exception as e:
+                        engine_size = "NaN"
+                    try:
+                        drivetrain = getFeatures(6)
+                    except Exception as e:
+                        drivetrain = "NaN"
+                    try:
+                        fuel_type = getFeatures(7)
+                    except Exception as e:
+                        fuel_type = "NaN"
+                    try:
+                        colour = getFeatures(10)
+                    except Exception as e:
+                        colour = "NaN"
+                    try:
+                        lot_no = getFeatures(11)
+                    except Exception as e:
+                        lot_no = "NaN"
+                    try:
+                        kilometer = getFeatures(12)
+                    except Exception as e:
+                        kilometer = "NaN"
+
+
+                    #Features selection ends..
+
+
+
+
+                    model=getFilteredModel(getModelArray(brand.lower()))
+                    final_engineSize=parseData(engine_size)
+                    final_drivetrain=parseData(drivetrain)
+                    final_model_year=parseData(model_year)
+                    final_transmission=parseData(transmission)
+                    final_fuel_type=parseData(fuel_type)
+                    final_colour=parseData(colour)
+                    final_lot_no=parseData(lot_no)
+                    final_kilometer=parseData(kilometer)
+
+                    # write the data respective to the header to the csv file
+                    csv_print.writerow([brand,model, final_model_year, final_transmission, final_engineSize, final_drivetrain, final_fuel_type,final_colour, final_lot_no, final_kilometer, status, price])
+                    # print('------------------------------')
+                    time.sleep(0.5)
+
+webScrape('Chevrolet','http://www.dealgara.com/search/category,31/bSold,1/item_condition,All/make,8/iPage,', 6)
+webScrape('Fiat','http://www.dealgara.com/search/category,31/bSold,1/item_condition,All/make,15/iPage,', 2)
+webScrape('Ford','http://www.dealgara.com/search/category,31/bSold,1/item_condition,All/make,16/iPage,',13)
+webScrape('Honda','http://www.dealgara.com/search/category,31/bSold,1/item_condition,All/make,19/iPage,',6)
+webScrape('Hyundai','http://www.dealgara.com/search/category,31/bSold,1/item_condition,All/make,21/iPage,',47)
+webScrape('Kia','http://www.dealgara.com/search/category,31/bSold,1/item_condition,All/make,34/iPage,',11)
+webScrape('Land Rover','http://www.dealgara.com/search/category,31/bSold,1/item_condition,All/make,27/iPage,',2)
+webScrape('Mahindra','http://www.dealgara.com/search/category,31/bSold,1/item_condition,All/make,35/iPage,',10)
+webScrape('Maruti Suzuki','http://www.dealgara.com/search/category,31/bSold,1/item_condition,All/make,50/iPage,',33)
+webScrape('Nissan','http://www.dealgara.com/search/category,31/bSold,1/item_condition,All/make,32/iPage,',6)
+webScrape('Skoda','http://www.dealgara.com/search/category,31/bSold,1/item_condition,All/make,33/iPage,',4)
+webScrape('Tata','http://www.dealgara.com/search/category,31/bSold,1/item_condition,All/make,11/iPage,',12)
+webScrape('Toyota','http://www.dealgara.com/search/category,31/bSold,1/item_condition,All/make,51/iPage,',15)
+webScrape('Volkswagen','http://www.dealgara.com/search/category,31/bSold,1/item_condition,All/make,52/iPage,',8)
+
+
+
